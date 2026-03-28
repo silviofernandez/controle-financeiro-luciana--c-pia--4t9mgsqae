@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -6,14 +6,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { ParsedTransaction } from '@/lib/statement-parser'
 import { useExpenseAliases } from '@/hooks/use-expense-aliases'
-import { Pencil, User, Building2, AlertCircle, Check } from 'lucide-react'
+import { Pencil, User, Building2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export type ReviewedTransaction = ParsedTransaction & {
@@ -45,7 +44,7 @@ export function StatementReviewModal({
         transactions.map((t) => ({
           ...t,
           included: true,
-          classification: null,
+          classification: 'personal',
           displayName: getAlias(t.originalName) || t.originalName,
         })),
       )
@@ -60,9 +59,14 @@ export function StatementReviewModal({
     setData((prev) => prev.map((item) => ({ ...item, included: checked })))
   }
 
+  const markAllAs = (type: 'personal' | 'company') => {
+    setData((prev) =>
+      prev.map((item) => (item.included ? { ...item, classification: type } : item)),
+    )
+  }
+
   const totalFound = data.length
   const includedItems = data.filter((d) => d.included)
-  const pendingItems = includedItems.filter((d) => !d.classification)
   const readyItems = includedItems.filter((d) => d.classification)
   const readySum = readyItems.reduce((acc, curr) => acc + curr.amount, 0)
 
@@ -75,37 +79,51 @@ export function StatementReviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-        <DialogHeader className="px-6 py-4 border-b">
+      <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col p-0">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>Revisão de Extrato</span>
-            <div className="flex gap-3 text-sm font-normal">
-              <Badge variant="outline" className="text-slate-600">
-                Total: {totalFound}
-              </Badge>
-              {pendingItems.length > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200"
+            <div className="flex items-center gap-4">
+              <div className="flex gap-2 mr-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => markAllAs('company')}
                 >
-                  Pendentes: {pendingItems.length}
+                  <Building2 className="w-3 h-3 mr-1" />
+                  Marcar tudo como Empresa
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => markAllAs('personal')}
+                >
+                  <User className="w-3 h-3 mr-1" />
+                  Marcar tudo como Pessoal
+                </Button>
+              </div>
+              <div className="flex gap-3 text-sm font-normal">
+                <Badge variant="outline" className="text-slate-600">
+                  Total: {totalFound}
                 </Badge>
-              )}
-              <Badge
-                variant="secondary"
-                className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"
-              >
-                Prontos: {readyItems.length} (
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                  readySum,
-                )}
-                )
-              </Badge>
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"
+                >
+                  Selecionados: {readyItems.length} (
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    readySum,
+                  )}
+                  )
+                </Badge>
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="px-6 py-2 bg-slate-50 border-b flex items-center gap-4 text-sm font-medium text-slate-500">
+        <div className="px-6 py-2 bg-slate-50 border-b flex-shrink-0 flex items-center gap-4 text-sm font-medium text-slate-500">
           <Checkbox checked={allIncluded} onCheckedChange={toggleAll} />
           <div className="w-24">Data</div>
           <div className="flex-1">Descrição</div>
@@ -113,7 +131,7 @@ export function StatementReviewModal({
           <div className="w-48 text-center">Classificação</div>
         </div>
 
-        <ScrollArea className="flex-1 px-6 py-2">
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-2">
           <div className="space-y-2">
             {data.map((item) => (
               <div
@@ -123,7 +141,6 @@ export function StatementReviewModal({
                   item.included
                     ? 'bg-white border-slate-200'
                     : 'bg-slate-50 border-transparent opacity-60',
-                  item.included && !item.classification && 'border-red-200 bg-red-50/30',
                 )}
               >
                 <Checkbox
@@ -147,12 +164,12 @@ export function StatementReviewModal({
                     />
                   ) : (
                     <div
-                      className="text-sm font-medium cursor-pointer hover:text-primary flex items-center gap-2 group"
+                      className="text-sm font-medium cursor-pointer hover:text-primary flex items-center gap-2 group truncate"
                       onClick={() => item.included && setEditingId(item.id)}
                     >
-                      {item.displayName}
+                      <span className="truncate">{item.displayName}</span>
                       {item.included && (
-                        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                       )}
                     </div>
                   )}
@@ -199,28 +216,14 @@ export function StatementReviewModal({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="px-6 py-4 border-t bg-slate-50 flex items-center justify-between sm:justify-between">
-          <div className="text-sm text-slate-500 flex items-center gap-2">
-            {pendingItems.length > 0 && (
-              <>
-                <AlertCircle className="w-4 h-4 text-red-500" />
-                <span className="text-red-600 font-medium">
-                  Classifique os itens pendentes para continuar.
-                </span>
-              </>
-            )}
-          </div>
+        <DialogFooter className="px-6 py-4 border-t bg-slate-50 flex items-center justify-end sm:justify-end flex-shrink-0">
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleConfirm}
-              disabled={pendingItems.length > 0 || includedItems.length === 0}
-              className="gap-2"
-            >
+            <Button onClick={handleConfirm} disabled={includedItems.length === 0} className="gap-2">
               <Check className="w-4 h-4" />
               Confirmar Importação
             </Button>
