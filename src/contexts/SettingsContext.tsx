@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { CATEGORIES as DEFAULT_CATEGORIES } from '@/types'
 
+import { CreditCardConfig } from '@/types'
+
 export interface TaggingRule {
   id: string
   keyword: string
@@ -16,6 +18,10 @@ interface SettingsContextData {
   addRule: (r: Omit<TaggingRule, 'id'>) => void
   removeRule: (id: string) => void
   applyRules: (description: string) => { categoria?: string; unidade?: string; banco?: string }
+  creditCards: CreditCardConfig[]
+  addCreditCard: (c: Omit<CreditCardConfig, 'id'>) => void
+  updateCreditCard: (c: CreditCardConfig) => void
+  removeCreditCard: (id: string) => void
 }
 
 const SettingsContext = createContext<SettingsContextData>({} as SettingsContextData)
@@ -32,6 +38,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return saved ? JSON.parse(saved) : []
   })
 
+  const [creditCards, setCreditCards] = useState<CreditCardConfig[]>(() => {
+    const saved = localStorage.getItem('@financeiro:creditCards')
+    return saved ? JSON.parse(saved) : []
+  })
+
   useEffect(() => {
     localStorage.setItem('@financeiro:categories', JSON.stringify(categories))
   }, [categories])
@@ -39,6 +50,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     localStorage.setItem('@financeiro:taggingRules', JSON.stringify(taggingRules))
   }, [taggingRules])
+
+  useEffect(() => {
+    localStorage.setItem('@financeiro:creditCards', JSON.stringify(creditCards))
+  }, [creditCards])
 
   const addCategory = (c: string) => {
     if (!categories.includes(c)) setCategories([...categories, c])
@@ -74,6 +89,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return result
   }
 
+  const addCreditCard = (c: Omit<CreditCardConfig, 'id'>) => {
+    setCreditCards([...creditCards, { ...c, id: crypto.randomUUID() }])
+  }
+
+  const updateCreditCard = (c: CreditCardConfig) => {
+    setCreditCards(creditCards.map((cc) => (cc.id === c.id ? c : cc)))
+  }
+
+  const removeCreditCard = (id: string) => {
+    setCreditCards(creditCards.filter((cc) => cc.id !== id))
+  }
+
   return (
     <SettingsContext.Provider
       value={{
@@ -84,6 +111,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addRule,
         removeRule,
         applyRules,
+        creditCards,
+        addCreditCard,
+        updateCreditCard,
+        removeCreditCard,
       }}
     >
       {children}

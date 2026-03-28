@@ -13,6 +13,7 @@ import { useTransactions } from '@/contexts/TransactionContext'
 
 import { SummaryCards } from '@/components/dashboard/SummaryCards'
 import { DueDateAlerts } from '@/components/dashboard/DueDateAlerts'
+import { InvoiceCycleAlerts } from '@/components/dashboard/InvoiceCycleAlerts'
 import { IncomeExpenseChart } from '@/components/dashboard/IncomeExpenseChart'
 import { CategoryDistribution } from '@/components/dashboard/CategoryDistribution'
 import { BudgetMonitoring } from '@/components/dashboard/BudgetMonitoring'
@@ -145,6 +146,8 @@ export default function Index() {
           </Button>
         </div>
       </div>
+
+      <InvoiceCycleAlerts />
 
       <SummaryCards transactions={periodTransactions} prevTransactions={prevTransactions} />
 

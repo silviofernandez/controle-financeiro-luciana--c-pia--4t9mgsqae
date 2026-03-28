@@ -1,8 +1,17 @@
 import { useState, useMemo } from 'react'
 import { useTransactions } from '@/contexts/TransactionContext'
+import { useSettings } from '@/contexts/SettingsContext'
 import { format, isSameMonth, parseISO } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Trash2, Search, X, CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Trash2,
+  Search,
+  X,
+  CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+} from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
 import { Badge } from './ui/badge'
@@ -15,6 +24,7 @@ import { UNIDADES, BANCOS } from '@/types'
 
 export function TransactionList() {
   const { transactions, deleteTransaction } = useTransactions()
+  const { creditCards } = useSettings()
   const [selectedMonth, setSelectedMonth] = useState<Date>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   )
@@ -76,6 +86,32 @@ export function TransactionList() {
     } catch {
       return '-'
     }
+  }
+
+  const isCurrentInvoiceCycle = (t: any) => {
+    if (t.banco !== 'Cartão de Crédito') return false
+    if (!t.data) return false
+
+    if (!creditCards || creditCards.length === 0) return false
+
+    try {
+      const tDate = typeof t.data === 'string' ? parseISO(t.data) : new Date(t.data)
+      const tDay = tDate.getDate()
+      const tMonth = tDate.getMonth()
+      const tYear = tDate.getFullYear()
+
+      const now = new Date()
+      if (tYear === now.getFullYear() && Math.abs(tMonth - now.getMonth()) <= 1) {
+        return creditCards.some((card) => {
+          if (tMonth === now.getMonth() && tDay < card.closingDay) return true
+          if (tMonth === now.getMonth() - 1 && tDay >= card.bestPurchaseDay) return true
+          return false
+        })
+      }
+    } catch {
+      return false
+    }
+    return false
   }
 
   return (
@@ -243,6 +279,14 @@ export function TransactionList() {
                         className={`text-sm block ${t.isCheckpoint ? 'text-emerald-800 italic font-medium' : 'text-slate-700'}`}
                       >
                         {typeof t.descricao === 'string' ? t.descricao : 'Sem descrição'}
+                        {isCurrentInvoiceCycle(t) && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertCircle className="inline-block w-3 h-3 ml-1.5 text-orange-500 mb-0.5" />
+                            </TooltipTrigger>
+                            <TooltipContent>Transação no ciclo atual de fatura</TooltipContent>
+                          </Tooltip>
+                        )}
                       </span>
                       <div className="flex md:hidden gap-1 mt-1.5 flex-wrap">
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 bg-white/50">
@@ -260,12 +304,21 @@ export function TransactionList() {
                       <span className="text-xs text-slate-600 font-medium">{t.unidade}</span>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
-                      <Badge
-                        variant={t.banco === 'Cartão de Crédito' ? 'default' : 'secondary'}
-                        className={`font-normal text-[10px] ${t.banco === 'Cartão de Crédito' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 text-slate-600'}`}
-                      >
-                        {t.banco}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge
+                          variant={t.banco === 'Cartão de Crédito' ? 'default' : 'secondary'}
+                          className={`font-normal text-[10px] ${t.banco === 'Cartão de Crédito' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 text-slate-600'}`}
+                        >
+                          {t.banco}
+                        </Badge>
+                        {t.banco === 'Cartão de Crédito' &&
+                          t.installments &&
+                          t.installments > 1 && (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Parc {t.installmentNumber}/{t.installments}
+                            </span>
+                          )}
+                      </div>{' '}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell max-w-[150px]">
                       {t.observacoes ? (

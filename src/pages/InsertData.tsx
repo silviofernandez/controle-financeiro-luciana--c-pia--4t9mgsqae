@@ -6,39 +6,59 @@ import { StatementUploader } from '@/components/StatementUploader'
 import { ReviewedTransaction } from '@/components/StatementReviewModal'
 import { useTransactions } from '@/contexts/TransactionContext'
 import { toast } from 'sonner'
+import { BestCardSuggestion } from '@/components/BestCardSuggestion'
 
 export default function InsertData() {
   const { addTransactions } = useTransactions()
 
   const handleImportedExpenses = (expenses: ReviewedTransaction[]) => {
     const currentYear = new Date().getFullYear()
+    const transactionsToImport: any[] = []
 
-    const formatted = expenses.map((exp) => {
-      // Ensure date is properly formatted (ISO string) for compatibility with filters
+    expenses.forEach((exp) => {
       const dateObj = new Date(exp.date)
 
       // Intelligent Date Normalization safeguard
       if (!isNaN(dateObj.getTime()) && Math.abs(dateObj.getFullYear() - currentYear) > 2) {
-        dateObj.setFullYear(currentYear)
+        // Enforce 2026 reference year logic or current year if standard
+        dateObj.setFullYear(Math.max(currentYear, 2026))
       }
 
-      const safeDate = isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString()
+      const safeDateStr = isNaN(dateObj.getTime())
+        ? new Date().toISOString()
+        : dateObj.toISOString()
 
-      return {
-        tipo: 'despesa' as const,
-        descricao: exp.displayName,
-        valor: exp.amount,
-        data: safeDate,
-        categoria: 'Outros', // Default category, user can edit later
-        unidade: 'Geral' as const,
-        banco: 'Cartão de Crédito' as const,
-        classificacao: exp.classification === 'company' ? ('variavel' as const) : ('fixo' as const),
-        observacoes: `Importado: ${exp.originalName}`,
+      const numInstallments = exp.installments && exp.installments > 0 ? exp.installments : 1
+      const isInstallment = numInstallments > 1
+
+      for (let i = 0; i < numInstallments; i++) {
+        const d = new Date(safeDateStr)
+        d.setMonth(d.getMonth() + i)
+
+        let desc = exp.displayName
+        if (isInstallment) {
+          desc = `${exp.displayName} (${i + 1}/${numInstallments})`
+        }
+
+        transactionsToImport.push({
+          tipo: 'despesa' as const,
+          descricao: desc,
+          valor: exp.amount, // replicating the same amount per future installment
+          data: d.toISOString(),
+          categoria: 'Outros', // Default category, user can edit later
+          unidade: exp.unit || 'Geral',
+          banco: 'Cartão de Crédito' as const,
+          classificacao:
+            exp.classification === 'company' ? ('variavel' as const) : ('fixo' as const),
+          observacoes: `Importado: ${exp.originalName}`,
+          installments: numInstallments,
+          installmentNumber: i + 1,
+        })
       }
     })
 
-    addTransactions(formatted)
-    toast.success(`${formatted.length} transações importadas com sucesso!`)
+    addTransactions(transactionsToImport)
+    toast.success(`${transactionsToImport.length} transações geradas e importadas com sucesso!`)
   }
 
   return (
@@ -46,6 +66,7 @@ export default function InsertData() {
       <ReconciliationAlert key="reconciliation-alert" />
       <div className="flex flex-col lg:flex-row gap-6 items-start">
         <div className="w-full lg:w-[420px] shrink-0 space-y-6">
+          <BestCardSuggestion />
           <StatementUploader onExpensesConfirmed={handleImportedExpenses} />
           <TransactionForm key="transaction-form" />
           <DashboardSummary key="dashboard-summary" />

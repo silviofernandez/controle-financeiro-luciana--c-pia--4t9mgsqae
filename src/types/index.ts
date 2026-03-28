@@ -58,6 +58,8 @@ export interface Transaction {
   juridicoValor?: number
   equipe?: string
   observacoes?: string
+  installments?: number
+  installmentNumber?: number
   created_at: string
 }
 
@@ -74,6 +76,13 @@ export interface CommissionRule {
   id: string
   role: string
   variations: RuleVariation[]
+}
+
+export interface CreditCardConfig {
+  id: string
+  name: string
+  closingDay: number
+  bestPurchaseDay: number
 }
 
 export interface CommissionTeam {

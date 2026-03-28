@@ -19,10 +19,21 @@ import { useTransactions } from '@/contexts/TransactionContext'
 import { Pencil, User, Building2, Check, Search, Filter, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { UNIDADES } from '@/types'
+
 export type ReviewedTransaction = ParsedTransaction & {
   included: boolean
   displayName: string
   classification: 'personal' | 'company' | null
+  unit: any
+  installments: number
 }
 
 interface Props {
@@ -151,6 +162,8 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
             included: true,
             classification: rule.classification || 'personal',
             displayName: rule.alias || t.originalName,
+            unit: 'Geral',
+            installments: 1,
           }
         }),
       )
@@ -294,7 +307,8 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
           />
           <div className="w-24">Data</div>
           <div className="flex-1">Descrição</div>
-          <div className="w-32 text-right">Valor</div>
+          <div className="w-32">Unidade/Parcelas</div>
+          <div className="w-24 text-right">Valor</div>
           <div className="w-48 text-center">Classificação</div>
         </div>
 
@@ -327,7 +341,7 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
                     <div className="w-24 text-sm">
                       {new Date(item.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                     </div>
-                    <div className="flex-1 flex flex-col gap-1 min-w-0">
+                    <div className="flex-1 flex flex-col gap-1 min-w-0 pr-4">
                       <div className="flex items-center gap-2">
                         {editingId === item.id ? (
                           <Input
@@ -380,7 +394,38 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
                         )}
                       </div>
                     </div>
-                    <div className="w-32 text-right text-sm font-semibold">
+                    <div className="w-32 flex flex-col gap-1 pr-2">
+                      <Select
+                        value={item.unit}
+                        onValueChange={(v) => updateItem(item.id, { unit: v })}
+                      >
+                        <SelectTrigger className="h-7 text-xs px-2 bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {UNIDADES.map((u) => (
+                            <SelectItem key={u} value={u}>
+                              {u}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Label className="text-[10px] text-slate-500 whitespace-nowrap">
+                          Parcelas:
+                        </Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          className="h-6 text-xs px-1 w-14 bg-white"
+                          value={item.installments}
+                          onChange={(e) =>
+                            updateItem(item.id, { installments: parseInt(e.target.value) || 1 })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="w-24 text-right text-sm font-semibold">
                       {new Intl.NumberFormat('pt-BR', {
                         style: 'currency',
                         currency: 'BRL',

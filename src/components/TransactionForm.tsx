@@ -83,6 +83,7 @@ export function TransactionForm() {
   const [unidade, setUnidade] = useState<Unidade>('Geral')
   const [banco, setBanco] = useState<Banco>('Outros')
   const [isCheckpoint, setIsCheckpoint] = useState(false)
+  const [installments, setInstallments] = useState<number>(1)
   const [loading, setLoading] = useState(false)
 
   // Commission dynamic fields
@@ -180,6 +181,12 @@ export function TransactionForm() {
   }, [descricao, tipo, applyRules])
 
   useEffect(() => {
+    if (banco !== 'Cartão de Crédito') {
+      setInstallments(1)
+    }
+  }, [banco])
+
+  useEffect(() => {
     if (tipo === 'despesa' && !isCheckpoint) {
       if (despesaTipo === 'cia') {
         setUnidade('Geral')
@@ -219,20 +226,55 @@ export function TransactionForm() {
   const executeSubmit = async () => {
     setLoading(true)
     await new Promise((r) => setTimeout(r, 400))
-    addTransaction({
-      tipo,
-      descricao: typeof descricao === 'string' ? descricao.trim() : '',
-      valor: parseCurrency(valorInput),
-      data: data ? new Date(data).toISOString() : new Date().toISOString(),
-      categoria: isCommission ? 'Comissão' : categoria,
-      unidade: tipo === 'despesa' && despesaTipo === 'cia' && !isCheckpoint ? 'Geral' : unidade,
-      banco,
-      isCheckpoint,
-      classificacao: tipo === 'despesa' && !isCheckpoint ? classificacao : null,
-      receitaTipo: tipo === 'receita' && !isCheckpoint ? receitaTipo : undefined,
-      despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
-      observacoes: observacoes.trim() || undefined,
-    })
+
+    const baseDate = data ? new Date(data) : new Date()
+    const desc = typeof descricao === 'string' ? descricao.trim() : ''
+    const totalVal = parseCurrency(valorInput)
+    const txUnidade =
+      tipo === 'despesa' && despesaTipo === 'cia' && !isCheckpoint ? 'Geral' : unidade
+
+    if (banco === 'Cartão de Crédito' && installments > 1 && tipo === 'despesa') {
+      const installmentValue = totalVal / installments
+      const txs = []
+
+      for (let i = 0; i < installments; i++) {
+        const d = new Date(baseDate)
+        d.setMonth(d.getMonth() + i)
+        txs.push({
+          tipo,
+          descricao: `${desc} (${i + 1}/${installments})`,
+          valor: installmentValue,
+          data: d.toISOString(),
+          categoria: isCommission ? 'Comissão' : categoria,
+          unidade: txUnidade,
+          banco,
+          isCheckpoint,
+          classificacao: tipo === 'despesa' && !isCheckpoint ? classificacao : null,
+          despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
+          observacoes: observacoes.trim() || undefined,
+          installments,
+          installmentNumber: i + 1,
+        })
+      }
+
+      // Assume addTransactions exists or loop addTransaction
+      txs.forEach((t) => addTransaction(t))
+    } else {
+      addTransaction({
+        tipo,
+        descricao: desc,
+        valor: totalVal,
+        data: baseDate.toISOString(),
+        categoria: isCommission ? 'Comissão' : categoria,
+        unidade: txUnidade,
+        banco,
+        isCheckpoint,
+        classificacao: tipo === 'despesa' && !isCheckpoint ? classificacao : null,
+        receitaTipo: tipo === 'receita' && !isCheckpoint ? receitaTipo : undefined,
+        despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
+        observacoes: observacoes.trim() || undefined,
+      })
+    }
 
     setDescricao('')
     setValorInput('')
@@ -240,6 +282,7 @@ export function TransactionForm() {
     setReceitaTipo('outro')
     setDespesaTipo('unitaria')
     setCategoria('Outros')
+    setInstallments(1)
     setSelectedTeamId('')
     setParticipantNames({})
     setSelectedVariations({})
@@ -732,9 +775,11 @@ export function TransactionForm() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 items-end">
               <div className="space-y-1.5">
-                <Label>Valor</Label>
+                <Label>
+                  {banco === 'Cartão de Crédito' && installments > 1 ? 'Valor Total' : 'Valor'}
+                </Label>
                 <Input
                   required
                   value={valorInput}
@@ -795,6 +840,20 @@ export function TransactionForm() {
                 </Select>
               </div>
             </div>
+
+            {banco === 'Cartão de Crédito' && tipo === 'despesa' && !isCheckpoint && (
+              <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
+                <Label>Parcelas</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={installments}
+                  onChange={(e) => setInstallments(parseInt(e.target.value) || 1)}
+                  className="bg-white"
+                />
+              </div>
+            )}
 
             {tipo === 'despesa' && !isCheckpoint ? (
               <div className="grid grid-cols-2 gap-3">
