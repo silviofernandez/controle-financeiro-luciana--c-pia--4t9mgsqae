@@ -11,4 +11,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// Add any other utility functions here
+export const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
+}
+
+export const parseCurrency = (value: string) => {
+  const clean = value.replace(/\D/g, '')
+  return Number(clean) / 100
+}
