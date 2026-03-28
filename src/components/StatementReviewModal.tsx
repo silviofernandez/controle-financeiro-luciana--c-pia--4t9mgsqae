@@ -260,6 +260,9 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
                 </Button>
               </div>
               <div className="flex gap-3 text-sm font-normal">
+                <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
+                  Cartão de Crédito
+                </Badge>
                 <Badge variant="outline">Encontrados: {filteredData.length}</Badge>
                 <Badge variant="secondary" className="bg-green-100 text-green-700">
                   Selecionados: {readyItems.length}
@@ -363,11 +366,19 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
                           </Tooltip>
                         )}
                       </div>
-                      {item.displayName !== item.originalName && (
-                        <div className="text-[10px] text-slate-400 truncate w-full">
-                          Original: {item.originalName}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1 py-0 h-4 bg-purple-50 text-purple-700 border-purple-200"
+                        >
+                          Cartão de Crédito
+                        </Badge>
+                        {item.displayName !== item.originalName && (
+                          <span className="text-[10px] text-slate-400 truncate flex-1">
+                            Original: {item.originalName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="w-32 text-right text-sm font-semibold">
                       {new Intl.NumberFormat('pt-BR', {

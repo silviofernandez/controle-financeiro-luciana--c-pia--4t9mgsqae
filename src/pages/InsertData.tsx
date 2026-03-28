@@ -11,9 +11,17 @@ export default function InsertData() {
   const { addTransactions } = useTransactions()
 
   const handleImportedExpenses = (expenses: ReviewedTransaction[]) => {
+    const currentYear = new Date().getFullYear()
+
     const formatted = expenses.map((exp) => {
       // Ensure date is properly formatted (ISO string) for compatibility with filters
       const dateObj = new Date(exp.date)
+
+      // Intelligent Date Normalization safeguard
+      if (!isNaN(dateObj.getTime()) && Math.abs(dateObj.getFullYear() - currentYear) > 2) {
+        dateObj.setFullYear(currentYear)
+      }
+
       const safeDate = isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString()
 
       return {
@@ -23,7 +31,7 @@ export default function InsertData() {
         data: safeDate,
         categoria: 'Outros', // Default category, user can edit later
         unidade: 'Geral' as const,
-        banco: 'Outros' as const,
+        banco: 'Cartão de Crédito' as const,
         classificacao: exp.classification === 'company' ? ('variavel' as const) : ('fixo' as const),
         observacoes: `Importado: ${exp.originalName}`,
       }

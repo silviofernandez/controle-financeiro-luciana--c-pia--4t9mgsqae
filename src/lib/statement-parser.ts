@@ -6,11 +6,22 @@ export interface ParsedTransaction {
 }
 
 function parseDate(dateStr: string): string {
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth() + 1 // 1-12
+
   // Try DD/MM/YYYY or DD/MM
   const matchBR = dateStr.match(/(\d{2})[/-](\d{2})(?:[/-](\d{4}|\d{2}))?/)
   if (matchBR) {
     const [_, d, m, y] = matchBR
-    const year = y ? (y.length === 2 ? `20${y}` : y) : new Date().getFullYear().toString()
+    let year = y ? (y.length === 2 ? `20${y}` : y) : currentYear.toString()
+
+    // Intelligent Date Normalization
+    if (!y && parseInt(m) === 12 && currentMonth === 1) {
+      year = (currentYear - 1).toString()
+    } else if (!y && parseInt(m) === 1 && currentMonth === 12) {
+      year = (currentYear + 1).toString()
+    }
+
     return `${year}-${m}-${d}`
   }
 

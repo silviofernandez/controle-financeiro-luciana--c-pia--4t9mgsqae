@@ -14,6 +14,7 @@ export type Banco =
   | 'D Financeiro'
   | 'Itaú'
   | 'Neon'
+  | 'Cartão de Crédito'
   | 'Outros'
 
 export type BrokerLevel = 'Júnior' | 'Pleno' | 'Sênior' | string
@@ -110,5 +111,6 @@ export const BANCOS: Banco[] = [
   'D Financeiro',
   'Itaú',
   'Neon',
+  'Cartão de Crédito',
   'Outros',
 ]

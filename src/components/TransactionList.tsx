@@ -249,8 +249,8 @@ export function TransactionList() {
                           {t.unidade}
                         </Badge>
                         <Badge
-                          variant="secondary"
-                          className="text-[9px] px-1.5 py-0 h-4 bg-slate-100"
+                          variant={t.banco === 'Cartão de Crédito' ? 'default' : 'secondary'}
+                          className={`text-[9px] px-1.5 py-0 h-4 ${t.banco === 'Cartão de Crédito' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100'}`}
                         >
                           {t.banco}
                         </Badge>
@@ -261,8 +261,8 @@ export function TransactionList() {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <Badge
-                        variant="secondary"
-                        className="font-normal text-[10px] bg-slate-100 text-slate-600"
+                        variant={t.banco === 'Cartão de Crédito' ? 'default' : 'secondary'}
+                        className={`font-normal text-[10px] ${t.banco === 'Cartão de Crédito' ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' : 'bg-slate-100 text-slate-600'}`}
                       >
                         {t.banco}
                       </Badge>
