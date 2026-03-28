@@ -5,23 +5,32 @@ import { ReconciliationAlert } from '@/components/ReconciliationAlert'
 import { StatementUploader } from '@/components/StatementUploader'
 import { ReviewedTransaction } from '@/components/StatementReviewModal'
 import { useTransactions } from '@/contexts/TransactionContext'
+import { toast } from 'sonner'
 
 export default function InsertData() {
   const { addTransactions } = useTransactions()
 
   const handleImportedExpenses = (expenses: ReviewedTransaction[]) => {
-    const formatted = expenses.map((exp) => ({
-      tipo: 'despesa' as const,
-      descricao: exp.displayName,
-      valor: exp.amount,
-      data: exp.date,
-      categoria: 'Outros', // Default category, user can edit later
-      unidade: 'Geral' as const,
-      banco: 'Outros' as const,
-      classificacao: exp.classification === 'company' ? ('variavel' as const) : null,
-      observacoes: `Importado: ${exp.originalName}`,
-    }))
+    const formatted = expenses.map((exp) => {
+      // Ensure date is properly formatted (ISO string) for compatibility with filters
+      const dateObj = new Date(exp.date)
+      const safeDate = isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString()
+
+      return {
+        tipo: 'despesa' as const,
+        descricao: exp.displayName,
+        valor: exp.amount,
+        data: safeDate,
+        categoria: 'Outros', // Default category, user can edit later
+        unidade: 'Geral' as const,
+        banco: 'Outros' as const,
+        classificacao: exp.classification === 'company' ? ('variavel' as const) : ('fixo' as const),
+        observacoes: `Importado: ${exp.originalName}`,
+      }
+    })
+
     addTransactions(formatted)
+    toast.success(`${formatted.length} transações importadas com sucesso!`)
   }
 
   return (
