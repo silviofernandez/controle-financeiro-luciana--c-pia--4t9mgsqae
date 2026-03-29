@@ -60,6 +60,7 @@ export interface Transaction {
   observacoes?: string
   installments?: number
   installmentNumber?: number
+  source?: 'cupom' | 'extrato' | 'manual'
   created_at: string
 }
 

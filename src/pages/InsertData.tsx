@@ -53,6 +53,7 @@ export default function InsertData() {
           observacoes: `Importado: ${exp.originalName}`,
           installments: numInstallments,
           installmentNumber: i + 1,
+          source: 'extrato',
         })
       }
     })

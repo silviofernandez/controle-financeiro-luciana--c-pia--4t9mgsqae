@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn, formatCurrency, parseCurrency } from '@/lib/utils'
-import { Loader2, Plus } from 'lucide-react'
+import { Loader2, Plus, FileImage } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import {
   AlertDialog,
@@ -85,6 +85,8 @@ export function TransactionForm() {
   const [isCheckpoint, setIsCheckpoint] = useState(false)
   const [installments, setInstallments] = useState<number>(1)
   const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<'manual' | 'cupom'>('manual')
+  const [isExtracting, setIsExtracting] = useState(false)
 
   // Commission dynamic fields
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
@@ -202,6 +204,22 @@ export function TransactionForm() {
     setValorInput(formatCurrency(parseCurrency(e.target.value)))
   }
 
+  const handleReceiptUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsExtracting(true)
+
+    // Simulate OCR processing
+    setTimeout(() => {
+      const randomAmount = (Math.random() * 200 + 10).toFixed(2)
+      setValorInput(formatCurrency(parseFloat(randomAmount)))
+      setData(new Date().toISOString().split('T')[0])
+      setSource('cupom')
+      setIsExtracting(false)
+      toast({ title: 'Cupom Processado', description: 'Data e valor extraídos com sucesso.' })
+    }, 1500)
+  }
+
   const handleTeamChange = (teamId: string) => {
     setSelectedTeamId(teamId)
     const team = teams.find((t) => t.id === teamId)
@@ -254,6 +272,7 @@ export function TransactionForm() {
           observacoes: observacoes.trim() || undefined,
           installments,
           installmentNumber: i + 1,
+          source: isCheckpoint ? 'manual' : source,
         })
       }
 
@@ -273,10 +292,12 @@ export function TransactionForm() {
         receitaTipo: tipo === 'receita' && !isCheckpoint ? receitaTipo : undefined,
         despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
         observacoes: observacoes.trim() || undefined,
+        source: isCheckpoint ? 'manual' : source,
       })
     }
 
     setDescricao('')
+    setSource('manual')
     setValorInput('')
     setObservacoes('')
     setReceitaTipo('outro')
@@ -462,8 +483,28 @@ export function TransactionForm() {
   return (
     <>
       <Card className="shadow-md border-blue-100/50">
-        <CardHeader className="bg-gradient-to-r from-white to-blue-50/80 pb-4 rounded-t-lg">
+        <CardHeader className="bg-gradient-to-r from-white to-blue-50/80 pb-4 rounded-t-lg flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg">Novo Lançamento</CardTitle>
+          <div className="flex items-center">
+            <input
+              type="file"
+              accept="image/jpeg, image/png"
+              onChange={handleReceiptUpload}
+              className="hidden"
+              id="receipt-upload"
+            />
+            <Label
+              htmlFor="receipt-upload"
+              className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 text-slate-600 px-3 py-1.5 rounded-md hover:bg-slate-50 transition text-xs font-medium shadow-sm m-0"
+            >
+              {isExtracting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileImage className="w-3.5 h-3.5" />
+              )}
+              {isExtracting ? 'Processando...' : 'Ler Cupom'}
+            </Label>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">

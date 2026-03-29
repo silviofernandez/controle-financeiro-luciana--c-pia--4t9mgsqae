@@ -34,6 +34,8 @@ export type ReviewedTransaction = ParsedTransaction & {
   classification: 'personal' | 'company' | null
   unit: any
   installments: number
+  isCupomDuplicate?: boolean
+  duplicateResolved?: boolean
 }
 
 interface Props {
@@ -157,13 +159,22 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
       setData(
         transactions.map((t) => {
           const rule = getRule(t.originalName)
+          const itemDateStr = new Date(t.date).toISOString().split('T')[0]
+          const isCupomDuplicate = existingTransactions.some(
+            (et) =>
+              Math.abs(et.valor - t.amount) < 0.01 &&
+              new Date(et.data).toISOString().split('T')[0] === itemDateStr &&
+              et.source === 'cupom',
+          )
           return {
             ...t,
-            included: true,
+            included: !isCupomDuplicate,
             classification: rule.classification || 'personal',
             displayName: rule.alias || t.originalName,
             unit: 'Geral',
             installments: 1,
+            isCupomDuplicate,
+            duplicateResolved: false,
           }
         }),
       )
@@ -173,7 +184,7 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
       setMinValue('')
       setMaxValue('')
     }
-  }, [isOpen, transactions, getRule])
+  }, [isOpen, transactions, getRule, existingTransactions])
 
   const updateItem = (id: string, updates: Partial<ReviewedTransaction>) => {
     setData((prev) =>
@@ -228,16 +239,6 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
         }
         return item
       }),
-    )
-  }
-
-  const checkDuplicate = (item: ReviewedTransaction) => {
-    if (!existingTransactions.length) return false
-    const itemDateStr = new Date(item.date).toISOString().split('T')[0]
-    return existingTransactions.some(
-      (et) =>
-        Math.abs(et.valor - item.amount) < 0.01 &&
-        new Date(et.data).toISOString().split('T')[0] === itemDateStr,
     )
   }
 
@@ -321,148 +322,164 @@ export function StatementReviewModal({ isOpen, onClose, transactions, onConfirm 
           ) : (
             <div className="space-y-2">
               {filteredData.map((item) => {
-                const isDuplicate = checkDuplicate(item)
+                const isDuplicate = item.isCupomDuplicate && !item.duplicateResolved
                 return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'flex items-center gap-4 p-3 rounded-lg border',
-                      item.included
-                        ? isDuplicate
-                          ? 'bg-orange-50/50 border-orange-200'
-                          : 'bg-white border-slate-200'
-                        : 'bg-slate-50 opacity-60',
-                    )}
-                  >
-                    <Checkbox
-                      checked={item.included}
-                      onCheckedChange={(c) => updateItem(item.id, { included: !!c })}
-                    />
-                    <div className="w-24 text-sm">
-                      {new Date(item.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                    </div>
-                    <div className="flex-1 flex flex-col gap-1 min-w-0 pr-4">
-                      <div className="flex items-center gap-2">
-                        {editingId === item.id ? (
-                          <Input
-                            autoFocus
-                            className="h-8 text-sm max-w-[300px]"
-                            value={item.displayName}
-                            onChange={(e) => updateItem(item.id, { displayName: e.target.value })}
-                            onBlur={() => setEditingId(null)}
-                            onKeyDown={(e) => e.key === 'Enter' && setEditingId(null)}
-                          />
-                        ) : (
-                          <div
-                            className="text-sm font-medium cursor-pointer flex items-center gap-2 group truncate"
-                            onClick={() => item.included && setEditingId(item.id)}
+                  <div key={item.id} className="space-y-2">
+                    <div
+                      className={cn(
+                        'flex items-center gap-4 p-3 rounded-lg border',
+                        item.included
+                          ? isDuplicate
+                            ? 'bg-orange-50/50 border-orange-200'
+                            : 'bg-white border-slate-200'
+                          : 'bg-slate-50 opacity-60',
+                      )}
+                    >
+                      <Checkbox
+                        checked={item.included}
+                        onCheckedChange={(c) => updateItem(item.id, { included: !!c })}
+                      />
+                      <div className="w-24 text-sm">
+                        {new Date(item.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                      </div>
+                      <div className="flex-1 flex flex-col gap-1 min-w-0 pr-4">
+                        <div className="flex items-center gap-2">
+                          {editingId === item.id ? (
+                            <Input
+                              autoFocus
+                              className="h-8 text-sm max-w-[300px]"
+                              value={item.displayName}
+                              onChange={(e) => updateItem(item.id, { displayName: e.target.value })}
+                              onBlur={() => setEditingId(null)}
+                              onKeyDown={(e) => e.key === 'Enter' && setEditingId(null)}
+                            />
+                          ) : (
+                            <div
+                              className="text-sm font-medium cursor-pointer flex items-center gap-2 group truncate"
+                              onClick={() => item.included && setEditingId(item.id)}
+                            >
+                              <span className="truncate">{item.displayName}</span>
+                              {item.included && (
+                                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 flex-shrink-0" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 h-4 bg-purple-50 text-purple-700 border-purple-200"
                           >
-                            <span className="truncate">{item.displayName}</span>
-                            {item.included && (
-                              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 flex-shrink-0" />
-                            )}
-                          </div>
-                        )}
-                        {isDuplicate && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge
-                                variant="destructive"
-                                className="bg-orange-500 hover:bg-orange-600 h-5 px-1.5 py-0 flex items-center gap-1 cursor-help shrink-0 text-[10px]"
-                              >
-                                <AlertTriangle className="w-3 h-3" />
-                                <span className="hidden sm:inline">Possível Duplicata</span>
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Uma transação com mesmo valor e data já existe no sistema.
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                            Cartão de Crédito
+                          </Badge>
+                          {item.displayName !== item.originalName && (
+                            <span className="text-[10px] text-slate-400 truncate flex-1">
+                              Original: {item.originalName}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] px-1 py-0 h-4 bg-purple-50 text-purple-700 border-purple-200"
+                      <div className="w-32 flex flex-col gap-1 pr-2">
+                        <Select
+                          value={item.unit}
+                          onValueChange={(v) => updateItem(item.id, { unit: v })}
                         >
-                          Cartão de Crédito
-                        </Badge>
-                        {item.displayName !== item.originalName && (
-                          <span className="text-[10px] text-slate-400 truncate flex-1">
-                            Original: {item.originalName}
-                          </span>
-                        )}
+                          <SelectTrigger className="h-7 text-xs px-2 bg-white">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIDADES.map((u) => (
+                              <SelectItem key={u} value={u}>
+                                {u}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <Label className="text-[10px] text-slate-500 whitespace-nowrap">
+                            Parcelas:
+                          </Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            className="h-6 text-xs px-1 w-14 bg-white"
+                            value={item.installments}
+                            onChange={(e) =>
+                              updateItem(item.id, { installments: parseInt(e.target.value) || 1 })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="w-24 text-right text-sm font-semibold">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(item.amount)}
+                      </div>
+                      <div className="w-48 flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!item.included}
+                          className={cn(
+                            'h-8 px-2 max-w-[90px]',
+                            item.classification === 'personal'
+                              ? 'bg-purple-100 text-purple-700 border-purple-200'
+                              : '',
+                          )}
+                          onClick={() => updateItem(item.id, { classification: 'personal' })}
+                        >
+                          <User className="w-4 h-4 mr-1" />
+                          Pessoal
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!item.included}
+                          className={cn(
+                            'h-8 px-2 max-w-[90px]',
+                            item.classification === 'company'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : '',
+                          )}
+                          onClick={() => updateItem(item.id, { classification: 'company' })}
+                        >
+                          <Building2 className="w-4 h-4 mr-1" />
+                          Empresa
+                        </Button>
                       </div>
                     </div>
-                    <div className="w-32 flex flex-col gap-1 pr-2">
-                      <Select
-                        value={item.unit}
-                        onValueChange={(v) => updateItem(item.id, { unit: v })}
-                      >
-                        <SelectTrigger className="h-7 text-xs px-2 bg-white">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {UNIDADES.map((u) => (
-                            <SelectItem key={u} value={u}>
-                              {u}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Label className="text-[10px] text-slate-500 whitespace-nowrap">
-                          Parcelas:
-                        </Label>
-                        <Input
-                          type="number"
-                          min={1}
-                          className="h-6 text-xs px-1 w-14 bg-white"
-                          value={item.installments}
-                          onChange={(e) =>
-                            updateItem(item.id, { installments: parseInt(e.target.value) || 1 })
-                          }
-                        />
+
+                    {isDuplicate && (
+                      <div className="ml-8 p-3 bg-orange-50 border border-orange-200 rounded-md flex items-center justify-between animate-in fade-in zoom-in-95">
+                        <div className="flex items-center gap-2 text-orange-800 text-sm font-medium">
+                          <AlertTriangle className="w-4 h-4" />
+                          <span>Esta despesa já foi lançada via cupom fiscal</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-orange-200 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
+                            onClick={() =>
+                              updateItem(item.id, { included: false, duplicateResolved: true })
+                            }
+                          >
+                            Ignorar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-8 bg-orange-600 hover:bg-orange-700 text-white"
+                            onClick={() =>
+                              updateItem(item.id, { included: true, duplicateResolved: true })
+                            }
+                          >
+                            Importar mesmo assim
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-24 text-right text-sm font-semibold">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(item.amount)}
-                    </div>
-                    <div className="w-48 flex items-center justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!item.included}
-                        className={cn(
-                          'h-8 px-2 max-w-[90px]',
-                          item.classification === 'personal'
-                            ? 'bg-purple-100 text-purple-700 border-purple-200'
-                            : '',
-                        )}
-                        onClick={() => updateItem(item.id, { classification: 'personal' })}
-                      >
-                        <User className="w-4 h-4 mr-1" />
-                        Pessoal
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!item.included}
-                        className={cn(
-                          'h-8 px-2 max-w-[90px]',
-                          item.classification === 'company'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : '',
-                        )}
-                        onClick={() => updateItem(item.id, { classification: 'company' })}
-                      >
-                        <Building2 className="w-4 h-4 mr-1" />
-                        Empresa
-                      </Button>
-                    </div>
+                    )}
                   </div>
                 )
               })}
