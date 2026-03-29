@@ -6,7 +6,16 @@ import { parseStatement, ParsedTransaction } from '@/lib/statement-parser'
 import { StatementReviewModal, ReviewedTransaction } from './StatementReviewModal'
 import { useExpenseAliases } from '@/hooks/use-expense-aliases'
 import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
+import { useTransactions } from '@/contexts/TransactionContext'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 
 interface StatementUploaderProps {
   onExpensesConfirmed: (expenses: ReviewedTransaction[]) => void
@@ -21,6 +30,58 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
 
   const { setAlias } = useExpenseAliases()
   const { toast } = useToast()
+  const { transactions } = useTransactions()
+
+  const [duplicatesQueue, setDuplicatesQueue] = useState<
+    { parsed: ParsedTransaction; match: any }[]
+  >([])
+  const [currentDuplicate, setCurrentDuplicate] = useState<number>(0)
+  const [processedData, setProcessedData] = useState<ParsedTransaction[]>([])
+
+  const checkDuplicatesAndProceed = (data: ParsedTransaction[]) => {
+    const queue: { parsed: ParsedTransaction; match: any }[] = []
+    const okData: ParsedTransaction[] = []
+
+    data.forEach((item) => {
+      const itemDate = new Date(item.date).toISOString().split('T')[0]
+      const exactMatch = transactions.find((t) => {
+        const tDate = new Date(t.data).toISOString().split('T')[0]
+        return tDate === itemDate && Math.abs(t.valor - item.amount) < 0.01
+      })
+
+      if (exactMatch) {
+        queue.push({ parsed: item, match: exactMatch })
+      } else {
+        okData.push(item)
+      }
+    })
+
+    if (queue.length > 0) {
+      setProcessedData(okData)
+      setDuplicatesQueue(queue)
+      setCurrentDuplicate(0)
+    } else {
+      setParsedData(okData)
+      setIsModalOpen(true)
+    }
+  }
+
+  const handleDuplicateDecision = (keep: boolean) => {
+    const current = duplicatesQueue[currentDuplicate]
+    const newProcessed = [...processedData]
+    if (keep) {
+      newProcessed.push(current.parsed)
+    }
+
+    if (currentDuplicate + 1 < duplicatesQueue.length) {
+      setCurrentDuplicate((prev) => prev + 1)
+      setProcessedData(newProcessed)
+    } else {
+      setDuplicatesQueue([])
+      setParsedData(newProcessed)
+      setIsModalOpen(true)
+    }
+  }
 
   const handleFile = async (file: File) => {
     if (!file || !(file instanceof File)) {
@@ -56,8 +117,7 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
           variant: 'destructive',
         })
       } else {
-        setParsedData(data)
-        setIsModalOpen(true)
+        checkDuplicatesAndProceed(data)
       }
     } catch (error) {
       console.error('Erro na leitura:', error)
@@ -186,6 +246,55 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
         transactions={parsedData}
         onConfirm={onConfirmReview}
       />
+
+      <Dialog open={duplicatesQueue.length > 0} onOpenChange={() => {}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Possível Duplicidade Encontrada</DialogTitle>
+            <DialogDescription className="text-amber-600 font-medium">
+              Esta despesa já foi lançada via cupom fiscal.
+            </DialogDescription>
+          </DialogHeader>
+
+          {duplicatesQueue.length > 0 && duplicatesQueue[currentDuplicate] && (
+            <div className="py-4 space-y-3 text-sm bg-slate-50 p-4 rounded-md border border-slate-100">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-slate-500 text-xs">Data</p>
+                  <p className="font-medium">
+                    {new Date(duplicatesQueue[currentDuplicate].parsed.date).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500 text-xs">Valor</p>
+                  <p className="font-medium">
+                    {formatCurrency(duplicatesQueue[currentDuplicate].parsed.amount)}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-500 text-xs">Descrição do Extrato</p>
+                  <p className="font-medium">
+                    {duplicatesQueue[currentDuplicate].parsed.originalName}
+                  </p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-500 text-xs">Lançamento Existente</p>
+                  <p className="font-medium text-slate-700">
+                    {duplicatesQueue[currentDuplicate].match.descricao}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2 sm:justify-end mt-4">
+            <Button variant="outline" onClick={() => handleDuplicateDecision(false)}>
+              Ignorar
+            </Button>
+            <Button onClick={() => handleDuplicateDecision(true)}>Importar mesmo assim</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

@@ -87,6 +87,8 @@ export function TransactionForm() {
   const [loading, setLoading] = useState(false)
   const [source, setSource] = useState<'manual' | 'cupom'>('manual')
   const [isExtracting, setIsExtracting] = useState(false)
+  const [attachment, setAttachment] = useState<File | null>(null)
+  const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
 
   // Commission dynamic fields
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
@@ -209,14 +211,17 @@ export function TransactionForm() {
     if (!file) return
     setIsExtracting(true)
 
-    // Simulate OCR processing
+    setAttachment(file)
+    setAttachmentUrl(URL.createObjectURL(file))
+
+    // Simulate OCR processing for image or PDF
     setTimeout(() => {
       const randomAmount = (Math.random() * 200 + 10).toFixed(2)
       setValorInput(formatCurrency(parseFloat(randomAmount)))
       setData(new Date().toISOString().split('T')[0])
       setSource('cupom')
       setIsExtracting(false)
-      toast({ title: 'Cupom Processado', description: 'Data e valor extraídos com sucesso.' })
+      toast({ title: 'Documento Processado', description: 'Data e valor extraídos com sucesso.' })
     }, 1500)
   }
 
@@ -273,6 +278,7 @@ export function TransactionForm() {
           installments,
           installmentNumber: i + 1,
           source: isCheckpoint ? 'manual' : source,
+          attachment: attachment || undefined,
         })
       }
 
@@ -293,11 +299,14 @@ export function TransactionForm() {
         despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
         observacoes: observacoes.trim() || undefined,
         source: isCheckpoint ? 'manual' : source,
+        attachment: attachment || undefined,
       })
     }
 
     setDescricao('')
     setSource('manual')
+    setAttachment(null)
+    setAttachmentUrl(null)
     setValorInput('')
     setObservacoes('')
     setReceitaTipo('outro')
@@ -488,7 +497,7 @@ export function TransactionForm() {
           <div className="flex items-center">
             <input
               type="file"
-              accept="image/jpeg, image/png"
+              accept="image/jpeg, image/png, image/webp, application/pdf"
               onChange={handleReceiptUpload}
               className="hidden"
               id="receipt-upload"
@@ -502,11 +511,45 @@ export function TransactionForm() {
               ) : (
                 <FileImage className="w-3.5 h-3.5" />
               )}
-              {isExtracting ? 'Processando...' : 'Ler Cupom'}
+              {isExtracting ? 'Processando...' : 'Ler Documento'}
             </Label>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
+          {attachmentUrl && (
+            <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-md mb-4 animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <FileImage className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="text-xs text-slate-600 truncate max-w-[150px] sm:max-w-[200px]">
+                  {attachment?.name || 'Arquivo anexado'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs px-2 text-primary hover:text-primary/80 hover:bg-primary/5"
+                  onClick={() => window.open(attachmentUrl, '_blank')}
+                >
+                  Abrir arquivo
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => {
+                    setAttachment(null)
+                    setAttachmentUrl(null)
+                    setSource('manual')
+                  }}
+                >
+                  Remover
+                </Button>
+              </div>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex bg-slate-100 p-1 rounded-lg">
               <button

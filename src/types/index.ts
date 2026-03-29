@@ -61,6 +61,7 @@ export interface Transaction {
   installments?: number
   installmentNumber?: number
   source?: 'cupom' | 'extrato' | 'manual'
+  attachment?: File | string | null
   created_at: string
 }
 

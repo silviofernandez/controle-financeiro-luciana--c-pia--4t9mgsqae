@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Transaction } from '@/types'
 import { toast } from '@/hooks/use-toast'
 import { getMockData } from '@/data/mock'
+import pb from '@/lib/pocketbase/client'
 
 interface TransactionContextData {
   transactions: Transaction[]
@@ -29,16 +30,41 @@ export const TransactionProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem('@financeiro:transactions:v3', JSON.stringify(transactions))
   }, [transactions])
 
-  const addTransaction = (t: Omit<Transaction, 'id' | 'created_at'>) => {
+  const addTransaction = async (t: Omit<Transaction, 'id' | 'created_at'>) => {
+    const id = crypto.randomUUID()
     const newTx: Transaction = {
       ...t,
-      id: crypto.randomUUID(),
+      id,
       created_at: new Date().toISOString(),
     }
     setTransactions((prev) =>
       [newTx, ...prev].sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()),
     )
     toast({ title: 'Sucesso!', description: 'Lançamento adicionado com sucesso.' })
+
+    try {
+      const formData = new FormData()
+      const d = new Date(t.data)
+      formData.append('date', d.toISOString())
+      formData.append('amount', t.valor.toString())
+      formData.append('description', t.descricao)
+      formData.append('unit', t.unidade)
+      formData.append('category', t.categoria)
+      formData.append('source', t.source || 'manual')
+      if (t.attachment instanceof File) {
+        formData.append('attachment', t.attachment)
+      }
+
+      const record = await pb.collection('transactions').create(formData)
+
+      setTransactions((prev) =>
+        prev.map((tx) =>
+          tx.id === id ? { ...tx, id: record.id, attachment: record.attachment } : tx,
+        ),
+      )
+    } catch (e) {
+      console.error('Error saving to PocketBase', e)
+    }
   }
 
   const addTransactions = (ts: Omit<Transaction, 'id' | 'created_at'>[]) => {
