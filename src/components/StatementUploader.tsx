@@ -23,10 +23,33 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
   const { toast } = useToast()
 
   const handleFile = async (file: File) => {
+    if (!file || !(file instanceof File)) {
+      toast({
+        title: 'Arquivo inválido',
+        description: 'O conteúdo fornecido não é um arquivo válido.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Safe String Handling: Ensure variable before .split() is properly validated
+    const fileName = file.name
+    if (fileName && typeof fileName === 'string') {
+      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : ''
+      const allowedExts = ['pdf', 'csv', 'ofx', 'ofc', 'xlsx', 'xls', 'txt']
+      if (ext && !allowedExts.includes(ext)) {
+        toast({
+          title: 'Formato não suportado',
+          description: `O formato .${ext} pode não ser suportado corretamente.`,
+          variant: 'default',
+        })
+      }
+    }
+
     setIsParsing(true)
     try {
       const data = await parseStatement(file)
-      if (data.length === 0) {
+      if (!data || data.length === 0) {
         toast({
           title: 'Nenhum dado encontrado',
           description: 'Não foi possível extrair transações deste arquivo.',
@@ -37,7 +60,7 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
         setIsModalOpen(true)
       }
     } catch (error) {
-      console.error(error)
+      console.error('Erro na leitura:', error)
       toast({
         title: 'Erro na leitura',
         description: error instanceof Error ? error.message : 'Falha ao processar o arquivo.',
@@ -62,8 +85,27 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
+
+    // Input Validation: Ensure text content or missing files are handled gracefully
+    const file = e.dataTransfer.files?.[0]
+    if (file) {
+      handleFile(file)
+      return
+    }
+
+    try {
+      const textContent = e.dataTransfer.getData('text')
+      // Safe String Handling: Validate variable exists and is a string before .split()
+      if (textContent && typeof textContent === 'string') {
+        const lines = textContent.split('\n')
+        if (lines.length > 0) {
+          const textFile = new File([textContent], 'dropped-text.txt', { type: 'text/plain' })
+          handleFile(textFile)
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao processar conteúdo de texto:', err)
+    }
   }, [])
 
   const onConfirmReview = (reviewed: ReviewedTransaction[]) => {
