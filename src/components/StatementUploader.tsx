@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Upload, File, Loader2 } from 'lucide-react'
+import { Upload, File as FileIcon, Loader2 } from 'lucide-react'
 import { parseStatement, ParsedTransaction } from '@/lib/statement-parser'
 import { StatementReviewModal, ReviewedTransaction } from './StatementReviewModal'
 import { useExpenseAliases } from '@/hooks/use-expense-aliases'
@@ -129,7 +129,7 @@ export function StatementUploader({ onExpensesConfirmed }: StatementUploaderProp
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <File className="w-5 h-5 text-primary" />
+            <FileIcon className="w-5 h-5 text-primary" />
             Importar Extrato
           </CardTitle>
         </CardHeader>
