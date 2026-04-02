@@ -141,7 +141,9 @@ export function TransactionForm() {
     try {
       const data = await getTeams()
       setPbTeams(data)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   useEffect(() => {
