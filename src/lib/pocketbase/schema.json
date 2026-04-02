@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-29T17:27:29.934Z",
+  "generatedAt": "2026-04-02T08:20:44.743Z",
   "collections": [
     {
       "name": "users",
@@ -113,6 +113,40 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_transactions_date_amount ON transactions (date, amount)"]
+    },
+    {
+      "name": "teams",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

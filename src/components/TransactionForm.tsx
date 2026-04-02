@@ -29,6 +29,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn, formatCurrency, parseCurrency } from '@/lib/utils'
 import { Loader2, Plus, FileImage } from 'lucide-react'
+import { getTeams, Team } from '@/services/teams'
+import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from '@/hooks/use-toast'
 import {
   AlertDialog,
@@ -90,6 +92,9 @@ export function TransactionForm() {
   const [attachment, setAttachment] = useState<File | null>(null)
   const [attachmentUrl, setAttachmentUrl] = useState<string | null>(null)
 
+  const [equipe, setEquipe] = useState<string>('none')
+  const [pbTeams, setPbTeams] = useState<Team[]>([])
+
   // Commission dynamic fields
   const [selectedTeamId, setSelectedTeamId] = useState<string>('')
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({})
@@ -131,6 +136,21 @@ export function TransactionForm() {
       )
       .slice(0, 10)
   }, [descricao, historicDescriptions])
+
+  const loadTeams = async () => {
+    try {
+      const data = await getTeams()
+      setPbTeams(data)
+    } catch (e) {}
+  }
+
+  useEffect(() => {
+    loadTeams()
+  }, [])
+
+  useRealtime('teams', () => {
+    loadTeams()
+  })
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -274,6 +294,7 @@ export function TransactionForm() {
           isCheckpoint,
           classificacao: tipo === 'despesa' && !isCheckpoint ? classificacao : null,
           despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
+          equipe: equipe !== 'none' ? equipe : undefined,
           observacoes: observacoes.trim() || undefined,
           installments,
           installmentNumber: i + 1,
@@ -297,6 +318,7 @@ export function TransactionForm() {
         classificacao: tipo === 'despesa' && !isCheckpoint ? classificacao : null,
         receitaTipo: tipo === 'receita' && !isCheckpoint ? receitaTipo : undefined,
         despesaTipo: tipo === 'despesa' && !isCheckpoint ? despesaTipo : undefined,
+        equipe: equipe !== 'none' ? equipe : undefined,
         observacoes: observacoes.trim() || undefined,
         source: isCheckpoint ? 'manual' : source,
         attachment: attachment || undefined,
@@ -313,6 +335,7 @@ export function TransactionForm() {
     setDespesaTipo('unitaria')
     setCategoria('Outros')
     setInstallments(1)
+    setEquipe('none')
     setSelectedTeamId('')
     setParticipantNames({})
     setSelectedVariations({})
@@ -924,6 +947,25 @@ export function TransactionForm() {
                 </Select>
               </div>
             </div>
+
+            {!isCommission && (
+              <div className="space-y-1.5">
+                <Label>Equipe Operacional (Opcional)</Label>
+                <Select value={equipe} onValueChange={setEquipe}>
+                  <SelectTrigger className="bg-white">
+                    <SelectValue placeholder="Nenhuma" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma</SelectItem>
+                    {pbTeams.map((t) => (
+                      <SelectItem key={t.id} value={t.name}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {banco === 'Cartão de Crédito' && tipo === 'despesa' && !isCheckpoint && (
               <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
