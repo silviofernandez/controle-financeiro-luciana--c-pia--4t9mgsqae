@@ -23,6 +23,7 @@ import { Trash2, Plus, Loader2 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { getTeams, createTeam, deleteTeam, Team } from '@/services/teams'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function TeamsManager() {
   const [teams, setTeams] = useState<Team[]>([])
@@ -35,7 +36,11 @@ export function TeamsManager() {
       const data = await getTeams()
       setTeams(data)
     } catch (err) {
-      console.error(err)
+      toast({
+        title: 'Erro',
+        description: getErrorMessage(err) || 'Erro ao carregar equipes.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -63,7 +68,11 @@ export function TeamsManager() {
       setIsModalOpen(false)
       setNewTeamName('')
     } catch (err) {
-      toast({ title: 'Erro', description: 'Erro ao criar equipe.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: getErrorMessage(err) || 'Erro ao criar equipe.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -74,7 +83,11 @@ export function TeamsManager() {
       await deleteTeam(id)
       toast({ title: 'Sucesso', description: 'Equipe removida.' })
     } catch (err) {
-      toast({ title: 'Erro', description: 'Erro ao remover equipe.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: getErrorMessage(err) || 'Erro ao remover equipe.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -82,7 +95,7 @@ export function TeamsManager() {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between">
         <div className="space-y-1.5">
-          <CardTitle>Gestão de Equipes</CardTitle>
+          <CardTitle>Gerenciar Equipes</CardTitle>
           <CardDescription>
             Crie e gerencie equipes operacionais para seus lançamentos.
           </CardDescription>

@@ -32,6 +32,7 @@ import { Loader2, Plus, FileImage } from 'lucide-react'
 import { getTeams, Team } from '@/services/teams'
 import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -142,7 +143,11 @@ export function TransactionForm() {
       const data = await getTeams()
       setPbTeams(data)
     } catch (e) {
-      console.error(e)
+      toast({
+        title: 'Erro',
+        description: getErrorMessage(e) || 'Erro ao carregar equipes.',
+        variant: 'destructive',
+      })
     }
   }
 
